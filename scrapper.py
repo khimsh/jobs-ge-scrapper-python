@@ -4,46 +4,54 @@ import lxml
 import re
 from csv import writer
 
-# Number of pages on jobs.ge
-pageCount = len(BeautifulSoup(requests.get(
-    'http://jobs.ge').content, 'lxml').find_all('a', {'class': 'pagebox'})) + 1
+'''
+Collect All URLs
+'''
+xml = requests.get('http://www.jobs.ge/rss/').content
+
+raw_urls = BeautifulSoup(xml, 'lxml').find_all('guid')
+
+urls = []
+
+for raw_url in raw_urls:
+    urls.append(raw_url.text)
 
 
-# A list to store all advertisment hrefs on jobs.ge
-href_list = list()
+'''
+Collect category URLs
+'''
+categories = ['admin', 'sales', 'finance', 'prmarketing',
+              'technical', 'it', 'law', 'healthcare', 'other']
 
 
-# Iterate over each page on jobs.ge
-for page in range(1, pageCount + 1):
+category_list = {
+    'admin': [],
+    'sales': [],
+    'finance': [],
+    'prmarketing': [],
+    'technical': [],
+    'it': [],
+    'law': [],
+    'healthcare': [],
+    'other': []
+}
+
+
+for category in categories:
+
     html = requests.get(
-        f'http://jobs.ge/?page={page}&keyword=&cat=&location=&view=').content
+        f'http://jobs.ge/?page=1&keyword=&cat={category}&location=&view=').content
+    bs = BeautifulSoup(html, 'lxml')
+    links = bs.find_all('a', {'class': 'ls'}, href=re.compile('\/[0-9]+\/'))
 
-    # Get all job entries
-    jobs = BeautifulSoup(html, 'lxml').find(
-        'div', {'class': 'regularEntries'}).find_all('tr')
-
-    # Iterate over all jobs
-    for job in jobs:
-        try:
-            """
-            1. Find <a> tag that links to an advertisment
-            2. Extract href
-            3. Add the extracted href to the list of all hrefs
-            """
-            href_list.append(job.find(
-                'a', {'class': 'ls'}, href=re.compile('\/[0-9]+\/')).attrs['href'])
-
-            print('href added to the list')
-        except AttributeError:
-            # Skip the iteration if AttributeError occurs
-            continue
-
+    for link in links:
+        category_list[category].append(link.attrs['href'])
 
 # Dictionay for a single ad
 advertisment = dict()
 
 
-def openAd(href):
+def openAd(url):
     """
     Access advertisment link and scrap the content
     1. Open advertisment
@@ -56,7 +64,7 @@ def openAd(href):
     # List to store needed <b> tags
     ad_list = list()
 
-    html = requests.get('http://jobs.ge' + href).content
+    html = requests.get(url).content
 
     # Get all <tr> inside <table class="ad">
     ad_trs = BeautifulSoup(html, 'lxml').find(
@@ -78,9 +86,14 @@ def openAd(href):
     advertisment['final_date'] = ad_list[2][1].text
     advertisment['text'] = ad_text
     advertisment['lang'] = 'ქართული'
-    advertisment['relative_url'] = href
-    advertisment['absolute_url'] = 'http://jobs.ge' + href
-    advertisment['translation_url'] = 'http://jobs.ge/eng' + href
+    advertisment['relative_url'] = url[18:]
+    advertisment['absolute_url'] = url
+    advertisment['translation_url'] = 'http://jobs.ge/eng' + url[18:]
+
+    for key, values in category_list.items():
+        for value in values:
+            if value == url[18:]:
+                advertisment['category'] = key
 
     return advertisment
 
@@ -91,6 +104,7 @@ with open('advertisments.csv', 'w', encoding="utf-8") as csv_file:
     headers = ['title',
                'post_date',
                'final_date',
+               'category',
                'company',
                'lang',
                'translation',
@@ -99,15 +113,17 @@ with open('advertisments.csv', 'w', encoding="utf-8") as csv_file:
                'relative_url']
     csv_writer.writerow(headers)
 
-    for href in href_list:
-        openAd(href)
+    for url in urls:
+        openAd(url)
         csv_writer.writerow([advertisment['title'],
                              advertisment['post_date'],
                              advertisment['final_date'],
+                             advertisment['category'],
                              advertisment['company'],
                              advertisment['lang'],
                              advertisment['translation_url'],
                              advertisment['text'],
                              advertisment['absolute_url'],
-                             advertisment['relative_url']])
+                             advertisment['relative_url']
+                             ])
         print('added to csv file')
