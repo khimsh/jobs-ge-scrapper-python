@@ -42,8 +42,15 @@ def open_ad(dictionary: dict, url: str) -> dict:
         ad_properties = tr.find_all('b')
         ad_list.append(ad_properties)
 
+    # Ad location is in title > i
+    if ad_list[0][0].find('i'):
+        location = ad_list[0][0].find('i').text.split(',')
+    else:
+        location = ['თბილისი']
+
     # assign properties to ad dictionary
     dictionary['title'] = ad_list[0][0].text
+    dictionary['location'] = location
     dictionary['company'] = ad_list[1][0].text
     dictionary['post_date'] = ad_list[2][0].text
     dictionary['final_date'] = ad_list[2][1].text
