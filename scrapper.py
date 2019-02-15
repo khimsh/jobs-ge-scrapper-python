@@ -13,24 +13,16 @@ import config
 from functions import open_ad
 from functions import get_page_count
 from functions import add_property
-
+from functions import get_html
 
 from category import collect_category_links
 from type import collect_ad_type_links
 
+
 start = time.time()
 
-"""
-Collect All URLs
-"""
 entry_point = config.config['url']
-
-try:
-    xml = requests.get(entry_point, timeout=3).content
-except ConnectionError:
-    raise ConnectionError
-
-raw_urls = BeautifulSoup(xml, 'lxml').find_all('guid')
+raw_urls = BeautifulSoup(get_html(entry_point), 'lxml').find_all('guid')
 
 
 # Collect all advertisment URLs in urls list

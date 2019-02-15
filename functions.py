@@ -69,3 +69,21 @@ def get_page_count(html: list) -> int:
     """
     pages = len(html.find_all('a', {'class': 'pagebox'})) + 1
     return pages
+
+
+def get_html(url: str):
+    """
+    Provide error checking for getting html with requests library
+    """
+    try:
+        html = requests.get(url, timeout=3)
+
+        if html.status_code != 200:
+            raise ConnectionError
+
+    except ConnectionError:
+        print('Connection Error encountered!')
+    else:
+        html = html.text
+
+    return html
